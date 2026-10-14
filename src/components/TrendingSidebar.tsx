@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { collection, getDocs } from "firebase/firestore";
+import { firestore } from "@/integrations/firebase/client";
 import { TrendingUp, Newspaper, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { Link } from "react-router-dom";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
@@ -21,25 +22,15 @@ const TrendingSidebar = () => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: latestData } = await supabase
-        .from("articles")
-        .select("id, title, image_url, published_at, category, slug")
-        .eq("is_published", true)
-        .order("published_at", { ascending: false })
-        .limit(5);
-      setLatest((latestData as LatestArticle[]) || []);
-
-      const { data: readData } = await supabase
-        .from("articles")
-        .select("id, title, image_url, published_at, category, slug")
-        .eq("is_published", true)
-        .order("created_at", { ascending: true })
-        .limit(8);
-      setMostRead((readData as LatestArticle[]) || []);
+      try {
+        const snapshot = await getDocs(collection(firestore, "articles"));
+        const rows = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as LatestArticle[];
+        const visible = rows.filter((item: any) => item.is_published !== false).sort((a, b) => String(b.published_at || "").localeCompare(String(a.published_at || "")));
+        setLatest(visible.slice(0, 5)); setMostRead(visible.slice(0, 8));
+      } catch (error) { console.error("Firebase sidebar error:", error); }
     };
-    fetchData();
+    void fetchData();
   }, []);
-
   return (
     <aside className="space-y-6">
       <div className="news-card p-5">

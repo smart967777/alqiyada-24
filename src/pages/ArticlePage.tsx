@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { collection, doc, getDoc, getDocs, query, where } from "firebase/firestore";
+import { firestore } from "@/integrations/firebase/client";
 import { DBArticle } from "@/hooks/useArticles";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
@@ -29,33 +30,16 @@ const ArticlePage = () => {
   useEffect(() => {
     const fetchArticle = async () => {
       if (!slug) return;
-      let { data } = await supabase.from("articles").select("*").eq("slug", slug).single();
-      if (!data) {
-        const res = await supabase.from("articles").select("*").eq("id", slug).single();
-        data = res.data;
-      }
+      const bySlug = await getDocs(query(collection(firestore, "articles"), where("slug", "==", slug)));
+      let data: any = bySlug.docs[0]?.data() ? { id: bySlug.docs[0].id, ...bySlug.docs[0].data() } : null;
+      if (!data) { const byId = await getDoc(doc(firestore, "articles", slug)); data = byId.exists() ? { id: byId.id, ...byId.data() } : null; }
       setArticle(data as DBArticle | null);
       setLoading(false);
-
-      if (data?.source_id) {
-        const { data: src } = await supabase
-          .from("news_sources")
-          .select("hide_original_source, alt_source_name, alt_source_url")
-          .eq("id", data.source_id)
-          .single();
-        if (src) setSourceInfo(src as SourceInfo);
-      }
-
+      if (data?.source_id) { const src = await getDoc(doc(firestore, "news_sources", data.source_id)); if (src.exists()) setSourceInfo(src.data() as SourceInfo); }
       if (data) {
-        const { data: relatedData } = await supabase
-          .from("articles")
-          .select("id, title, image_url, published_at, category, slug, author")
-          .eq("is_published", true)
-          .eq("language", data.language)
-          .neq("id", data.id)
-          .order("published_at", { ascending: false })
-          .limit(6);
-        setRelated((relatedData as DBArticle[]) || []);
+        const relatedSnapshot = await getDocs(query(collection(firestore, "articles"), where("language", "==", data.language)));
+        const relatedData = relatedSnapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item: any) => item.is_published !== false && item.id !== data.id).slice(0, 6);
+        setRelated(relatedData as DBArticle[]);
       }
     };
     fetchArticle();

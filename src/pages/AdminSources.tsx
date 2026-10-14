@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, Globe, Rss, Code, Zap, CheckCircle, AlertCircle, Loader2, Plus, Pencil, Trash2, RefreshCw, Timer, EyeOff, Eye, Link as LinkIcon, Upload, FileUp, X, CheckSquare, Square, AlertTriangle, Languages, Clock } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { addDoc, collection, deleteDoc, doc, getDocs, updateDoc, writeBatch, query, where } from "firebase/firestore";
+import { firestore } from "@/integrations/firebase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -96,11 +97,10 @@ const AdminSources = () => {
 
   const loadSources = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("manage-sources", { body: { action: "list" } });
-      if (error) throw error;
-      setSources(data.sources || []);
-      // Auto-detect duplicates
-      findDuplicates(data.sources || []);
+      const snapshot = await getDocs(collection(firestore, "news_sources"));
+      const list = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })) as Source[];
+      setSources(list);
+      findDuplicates(list);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
 
@@ -145,30 +145,13 @@ const AdminSources = () => {
   const handleAddSource = async () => {
     if (!selectedResult || !sourceName) { toast({ title: "أدخل اسم المصدر", variant: "destructive" }); return; }
     try {
-      const { data, error } = await supabase.functions.invoke("manage-sources", {
-        body: {
-          action: "add",
-          source: {
-            name: sourceName, url, fetch_method: selectedResult.methodKey, fetch_url: selectedResult.fetchUrl,
-            fetch_interval_minutes: autoFetchEnabled ? fetchInterval : 0, language: sourceLanguage, is_active: autoFetchEnabled,
-            hide_original_source: hideSource,
-            alt_source_name: altSourceName || null,
-            alt_source_url: altSourceUrl || null,
-            assigned_category: assignedCategory || null,
-          },
-        },
-      });
-      if (error) throw error;
-      toast({ title: "تمت إضافة المصدر بنجاح ✓" });
-      setSources((prev) => [data.source, ...prev]);
-      if (autoFetchEnabled) {
-        setFetching(data.source.id);
-        try {
-          const { data: fetchData } = await supabase.functions.invoke("fetch-news", { body: { sourceId: data.source.id } });
-          toast({ title: `تم جلب ${fetchData?.fetched || 0} مقال من المصدر الجديد ✓` });
-          loadSources();
-        } catch {} finally { setFetching(null); }
-      }
+      const source = { name: sourceName, url, fetch_method: selectedResult.methodKey, fetch_url: selectedResult.fetchUrl,
+        fetch_interval_minutes: autoFetchEnabled ? fetchInterval : 0, language: sourceLanguage, is_active: autoFetchEnabled,
+        hide_original_source: hideSource, alt_source_name: altSourceName || null, alt_source_url: altSourceUrl || null,
+        assigned_category: assignedCategory || null, articles_count: 0, last_fetched_at: null, created_at: new Date().toISOString() };
+      const created = await addDoc(collection(firestore, "news_sources"), source);
+      const saved = { id: created.id, ...source } as Source;
+      toast({ title: "تمت إضافة المصدر بنجاح ✓" }); setSources((prev) => [saved, ...prev]);
       setUrl(""); setResults(null); setSelectedMethod(null); setSourceName("");
       setHideSource(false); setAltSourceName(""); setAltSourceUrl(""); setAssignedCategory(""); setShowAltSource(false);
     } catch (e: any) {
@@ -178,8 +161,7 @@ const AdminSources = () => {
 
   const handleUpdateSource = async (id: string) => {
     try {
-      const { error } = await supabase.functions.invoke("manage-sources", { body: { action: "update", source: { id, ...editData } } });
-      if (error) throw error;
+      await updateDoc(doc(firestore, "news_sources", id), editData);
       toast({ title: "تم التحديث ✓" }); setEditingId(null); loadSources();
     } catch (e: any) { toast({ title: "خطأ", description: e.message, variant: "destructive" }); }
   };
@@ -189,10 +171,10 @@ const AdminSources = () => {
     try {
       if (deleteArticles) {
         // Delete all articles from this source first
-        await supabase.from("articles").delete().eq("source_id", deleteTarget.id);
+        const articles = await getDocs(query(collection(firestore, "articles"), where("source_id", "==", deleteTarget.id)));
+        const batch = writeBatch(firestore); articles.docs.forEach((item) => batch.delete(item.ref)); await batch.commit();
       }
-      const { error } = await supabase.functions.invoke("manage-sources", { body: { action: "delete", source: { id: deleteTarget.id } } });
-      if (error) throw error;
+      await deleteDoc(doc(firestore, "news_sources", deleteTarget.id));
       setSources((prev) => prev.filter((s) => s.id !== deleteTarget.id));
       toast({ title: deleteArticles ? "تم حذف المصدر وجميع أخباره ✓" : "تم حذف المصدر فقط ✓" });
     } catch (e: any) { toast({ title: "خطأ", description: e.message, variant: "destructive" }); }
@@ -202,11 +184,12 @@ const AdminSources = () => {
   const handleManualFetch = async (sourceId?: string) => {
     setFetching(sourceId || "all"); setFetchResult(null);
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-news", { body: { sourceId } });
-      if (error) throw error;
-      setFetchResult(`تم جلب ${data.fetched} مقال من ${data.sources} مصادر`);
-      toast({ title: `تم جلب ${data.fetched} مقال ✓` });
-      loadSources();
+      const ingestUrl = import.meta.env.VITE_NEWS_INGEST_URL;
+      if (!ingestUrl) throw new Error("لم يتم إعداد خدمة جلب الأخبار بعد. أضف VITE_NEWS_INGEST_URL لخدمة Cloud Function.");
+      const response = await fetch(ingestUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceId }) });
+      if (!response.ok) throw new Error("تعذر الاتصال بخدمة جلب الأخبار");
+      const data = await response.json(); setFetchResult(`تم جلب ${data.fetched || 0} مقال من ${data.sources || 0} مصادر`);
+      toast({ title: `تم جلب ${data.fetched || 0} مقال ✓` }); loadSources();
     } catch (e: any) { toast({ title: "خطأ في الجلب", description: e.message, variant: "destructive" }); } finally { setFetching(null); }
   };
 
@@ -383,21 +366,14 @@ const AdminSources = () => {
         language: f.detectedLanguage || "ar",
         fetch_interval_minutes: 15,
       }));
-      const { data, error } = await supabase.functions.invoke("manage-sources", {
-        body: { action: "bulk-add", sources: sourcesList },
-      });
-      if (error) throw error;
-      toast({ title: `تم استيراد ${data.inserted} مصدر ✓` + (data.errors?.length ? ` (${data.errors.length} فشل)` : "") });
+      const batch = writeBatch(firestore);
+      sourcesList.forEach((source) => batch.set(doc(collection(firestore, "news_sources")), { ...source, is_active: true, articles_count: 0, created_at: new Date().toISOString() }));
+      await batch.commit();
+      toast({ title: `تم استيراد ${sourcesList.length} مصدر ✓` });
       setShowOpmlPreview(false);
       setOpmlFeeds([]);
       loadSources();
-      if (data.inserted > 0) {
-        setFetching("all");
-        try {
-          const { data: fetchData } = await supabase.functions.invoke("fetch-news", { body: {} });
-          toast({ title: `تم جلب ${fetchData?.fetched || 0} مقال من المصادر الجديدة ✓` });
-        } catch {} finally { setFetching(null); }
-      }
+      if (sourcesList.length > 0) { await loadSources(); }
     } catch (e: any) {
       toast({ title: "خطأ في الاستيراد", description: e.message, variant: "destructive" });
     } finally { setOpmlImporting(false); }

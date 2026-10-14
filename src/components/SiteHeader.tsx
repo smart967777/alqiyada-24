@@ -2,7 +2,8 @@ import { useState, useEffect, useRef } from "react";
 import { Search, Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { collection, getDocs } from "firebase/firestore";
+import { firestore } from "@/integrations/firebase/client";
 import { decodeHtmlEntities } from "@/lib/htmlUtils";
 import ThemeToggle from "./ThemeToggle";
 import RadioPlayer from "./RadioPlayer";
@@ -53,15 +54,10 @@ const SiteHeader = () => {
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
-      const { data } = await supabase
-        .from("articles")
-        .select("id, title, category, image_url, slug, description")
-        .eq("is_published", true)
-        .or(`title.ilike.%${query}%,description.ilike.%${query}%,content.ilike.%${query}%`)
-        .order("published_at", { ascending: false })
-        .limit(10);
-      setResults((data as SearchResult[]) || []);
-      setSearching(false);
+      const snapshot = await getDocs(collection(firestore, "articles"));
+      const needle = query.trim().toLocaleLowerCase();
+      const data = snapshot.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item: any) => item.is_published !== false && [item.title, item.description, item.content].some((value) => String(value || "").toLocaleLowerCase().includes(needle))).slice(0, 10);
+      setResults(data as SearchResult[]); setSearching(false);
     }, 250);
     return () => clearTimeout(debounceRef.current);
   }, [query]);
