@@ -1,0 +1,19 @@
+{
+  "name": "القيادة 24 - Alqiada 24",
+  "short_name": "القيادة 24",
+  "description": "منصة إخبارية احترافية وموثوقة",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f2a4a",
+  "theme_color": "#1a5ca8",
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "./favicon.ico",
+      "sizes": "64x64",
+      "type": "image/x-icon"
+    }
+  ]
+}
