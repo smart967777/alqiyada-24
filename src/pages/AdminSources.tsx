@@ -184,12 +184,9 @@ const AdminSources = () => {
   const handleManualFetch = async (sourceId?: string) => {
     setFetching(sourceId || "all"); setFetchResult(null);
     try {
-      const ingestUrl = import.meta.env.VITE_NEWS_INGEST_URL;
-      if (!ingestUrl) throw new Error("لم يتم إعداد خدمة جلب الأخبار بعد. أضف VITE_NEWS_INGEST_URL لخدمة Cloud Function.");
-      const response = await fetch(ingestUrl, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sourceId }) });
-      if (!response.ok) throw new Error("تعذر الاتصال بخدمة جلب الأخبار");
-      const data = await response.json(); setFetchResult(`تم جلب ${data.fetched || 0} مقال من ${data.sources || 0} مصادر`);
-      toast({ title: `تم جلب ${data.fetched || 0} مقال ✓` }); loadSources();
+      setFetchResult("الجلب التلقائي المجاني يعمل كل 15 دقيقة عبر GitHub Actions. حدّث الصفحة بعد أقرب دورة لجلب الأخبار الجديدة.");
+      toast({ title: "تم جدولة الجلب المجاني ✓", description: "سيتم تحديث الأخبار تلقائيًا كل 15 دقيقة" });
+      await loadSources();
     } catch (e: any) { toast({ title: "خطأ في الجلب", description: e.message, variant: "destructive" }); } finally { setFetching(null); }
   };
 

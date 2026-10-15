@@ -13,6 +13,10 @@ pnpm-debug.log*
 lerna-debug.log*
 
 node_modules
+functions/node_modules
+.firebase
+service-account*.json
+*firebase-adminsdk*.json
 dist
 dist-ssr
 *.local
