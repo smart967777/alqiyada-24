@@ -86,15 +86,6 @@ const AdminSources = () => {
 
   useEffect(() => { loadSources(); }, []);
 
-  useEffect(() => {
-    const activeSources = sources.filter((s) => s.is_active);
-    if (activeSources.length === 0) return;
-    const intervals = activeSources.map((source) => {
-      return setInterval(() => { handleManualFetch(source.id); }, source.fetch_interval_minutes * 60 * 1000);
-    });
-    return () => intervals.forEach(clearInterval);
-  }, [sources]);
-
   const loadSources = async () => {
     try {
       const snapshot = await getDocs(collection(firestore, "news_sources"));
@@ -184,8 +175,8 @@ const AdminSources = () => {
   const handleManualFetch = async (sourceId?: string) => {
     setFetching(sourceId || "all"); setFetchResult(null);
     try {
-      setFetchResult("الجلب التلقائي المجاني يعمل كل 15 دقيقة عبر GitHub Actions. حدّث الصفحة بعد أقرب دورة لجلب الأخبار الجديدة.");
-      toast({ title: "تم جدولة الجلب المجاني ✓", description: "سيتم تحديث الأخبار تلقائيًا كل 15 دقيقة" });
+      setFetchResult("الجلب التلقائي المجاني يعمل كل 3 ساعات عبر GitHub Actions. حدّث الصفحة بعد أقرب دورة لجلب الأخبار الجديدة.");
+      toast({ title: "الجلب المجدول يعمل كل 3 ساعات ✓", description: "سيتم تحديث الأخبار تلقائيًا دون إبقاء الموقع مفتوحًا" });
       await loadSources();
     } catch (e: any) { toast({ title: "خطأ في الجلب", description: e.message, variant: "destructive" }); } finally { setFetching(null); }
   };

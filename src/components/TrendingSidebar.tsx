@@ -42,7 +42,7 @@ const TrendingSidebar = () => {
           {latest.map((article) => (
             <Link key={article.id} to={`/article/${article.slug || article.id}`} className="flex gap-3 group">
               {article.image_url && article.image_url.trim() !== "" && (
-                <img src={article.image_url} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                <img src={article.image_url} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" loading="lazy" onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }} />
               )}
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-semibold text-foreground group-hover:text-urgent transition-colors line-clamp-2 leading-snug">

@@ -29,7 +29,7 @@ const EnglishNewsSection = ({ articles }: EnglishNewsSectionProps) => {
                 alt={article.title}
                 className="w-full h-48 object-cover"
                 loading="lazy"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }}
               />
             ) : (
               <div className="w-full h-28 bg-secondary flex items-center justify-center">

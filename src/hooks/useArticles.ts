@@ -31,10 +31,14 @@ const uniqueArticles = (items: DBArticle[]) => {
     if (url) urls.add(url); if (title) titles.add(title); return true;
   });
 };
+const articleTime = (article: DBArticle) => {
+  const timestamp = Date.parse(article.published_at || article.created_at || "");
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
 const readArticles = async (language: string) => {
   const snapshot = await getDocs(query(articlesCollection, where("language", "==", language)));
-  return uniqueArticles(snapshot.docs.map((d) => asArticle(d.id, d.data()))).sort((a, b) =>
-    String(b.published_at || b.created_at).localeCompare(String(a.published_at || a.created_at)));
+  return uniqueArticles(snapshot.docs.map((d) => asArticle(d.id, d.data())).filter((article) => article.is_published))
+    .sort((a, b) => articleTime(b) - articleTime(a));
 };
 
 export function useArticles(language = "ar", page = 1) {

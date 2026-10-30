@@ -136,7 +136,7 @@ const SiteHeader = () => {
                         className="flex items-center gap-3 p-3 hover:bg-secondary transition-colors border-b border-border last:border-b-0"
                       >
                         {r.image_url && (
-                          <img src={r.image_url} alt="" className="w-12 h-12 rounded object-cover shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                          <img src={r.image_url} alt="" className="w-12 h-12 rounded object-cover shrink-0" onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }} />
                         )}
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground line-clamp-2">{decodeHtmlEntities(r.title)}</p>

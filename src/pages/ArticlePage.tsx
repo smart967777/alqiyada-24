@@ -189,7 +189,7 @@ const ArticlePage = () => {
               alt={cleanTitle}
               className="w-full rounded-lg mb-6 max-h-[500px] object-cover cursor-pointer"
               onClick={() => setLightboxIndex(0)}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }}
             />
           )}
 
@@ -204,7 +204,7 @@ const ArticlePage = () => {
                   className="w-full h-32 md:h-40 object-cover rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                   loading="lazy"
                   onClick={() => setLightboxIndex(allVideos.length > 0 ? idx : idx + 1)}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                  onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }}
                 />
               ))}
             </div>
@@ -282,7 +282,7 @@ const ArticlePage = () => {
               {related.map((r) => (
                 <Link key={r.id} to={`/article/${r.slug || r.id}`} className="news-card overflow-hidden group">
                   {r.image_url && r.image_url.trim() !== "" && (
-                    <img src={r.image_url} alt="" className="w-full h-36 object-cover" loading="lazy" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    <img src={r.image_url} alt="" className="w-full h-36 object-cover" loading="lazy" onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }} />
                   )}
                   <div className="p-3">
                     <span className="text-xs text-urgent font-semibold">{r.category}</span>

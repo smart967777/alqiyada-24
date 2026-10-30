@@ -14,17 +14,22 @@ const stripTracking = (url = "") => { try { const u = new URL(url); ["utm_source
 const hash = (value) => crypto.createHash("sha256").update(value).digest("hex").slice(0, 32);
 const tag = (xml, name) => { const m = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)</${name}>`, "i")); return m ? clean(m[1].replace(/<!\[CDATA\[|\]\]>/g, "")) : ""; };
 const entries = (xml) => { const rss = [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].map((m) => m[1]); return rss.length ? rss : [...xml.matchAll(/<entry(?:\s[^>]*)?>([\s\S]*?)<\/entry>/gi)].map((m) => m[1]); };
+const classify = (title, description, fallback = "منوعات") => {
+  const text = `${title} ${description}`.toLocaleLowerCase();
+  const rules = [["رياضة", /رياضة|مباراة|دوري|منتخب|هدف|بطولة|لاعب|كرة/], ["اقتصاد", /اقتصاد|أسواق|سوق|دولار|نفط|بنك|استثمار|أسهم|تجارة/], ["تكنولوجيا", /تقنية|تكنولوجيا|ذكاء اصطناعي|هاتف|إنترنت|رقمي|برمج/], ["صحة", /صحة|مرض|دواء|مستشفى|طبي|لقاح/], ["سياسة", /سياسة|حكومة|رئيس|برلمان|انتخابات|وزير|دبلوماس/], ["ثقافة", /ثقافة|فن|سينما|كتاب|موسيقى|تراث/]];
+  return rules.find(([, pattern]) => pattern.test(text))?.[0] || fallback || "منوعات";
+};
 function parse(entry, source) {
   const title = tag(entry, "title");
   const url = stripTracking(tag(entry, "link") || ((entry.match(/<link[^>]+href=["']([^"']+)["']/i) || [])[1] || ""));
   const description = clean(tag(entry, "description") || tag(entry, "summary") || tag(entry, "content"));
   const content = clean(tag(entry, "content:encoded") || tag(entry, "content") || description);
   const published = tag(entry, "pubDate") || tag(entry, "published") || tag(entry, "updated") || new Date().toISOString();
-  const image = ((entry.match(/<media:content[^>]+url=["']([^"']+)["']/i) || entry.match(/<enclosure[^>]+url=["']([^"']+)["']/i) || [])[1] || null);
+  const image = ((entry.match(/<media:(?:content|thumbnail)[^>]+url=["']([^"']+)["']/i) || entry.match(/<enclosure[^>]+type=["']image[^"']+[^>]+url=["']([^"']+)["']/i) || entry.match(/<enclosure[^>]+url=["']([^"']+)["']/i) || entry.match(/<image[^>]*>[^<]*<url>([^<]+)<\/url>/i) || [])[1] || null);
   if (!title || !url) return null;
   const id = hash(`${url}|${title.toLocaleLowerCase()}`);
   let publishedAt; try { publishedAt = new Date(published).toISOString(); } catch { publishedAt = new Date().toISOString(); }
-  return { title, description: description.slice(0, 1200) || null, content: content.slice(0, 12000) || null, url, image_url: image, author: tag(entry, "author") || null, category: tag(entry, "category") || source.assigned_category || "منوعات", language: source.language || "ar", published_at: publishedAt, source_id: source.id, is_published: true, is_ai_generated: false, created_at: new Date().toISOString(), slug: id };
+  return { title, description: description.slice(0, 1200) || null, content: content.slice(0, 12000) || null, url, image_url: image, author: tag(entry, "author") || null, category: classify(title, description, source.assigned_category), language: source.language || "ar", published_at: publishedAt, source_id: source.id, is_published: true, is_ai_generated: false, created_at: new Date().toISOString(), slug: id };
 }
 async function main() {
   const snap = await db.collection("news_sources").where("is_active", "==", true).get();

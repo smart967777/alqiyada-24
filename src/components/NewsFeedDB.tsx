@@ -97,7 +97,7 @@ function NewsCard({ article, index, language }: { article: DBArticle; index: num
                 alt={decodeHtmlEntities(article.title)}
                 className="w-full h-48 object-cover"
                 loading="lazy"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }}
               />
             ) : (
               <div className="w-full h-48 bg-secondary" />
@@ -114,7 +114,7 @@ function NewsCard({ article, index, language }: { article: DBArticle; index: num
             alt={decodeHtmlEntities(article.title)}
             className="w-full h-48 object-cover"
             loading="lazy"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+            onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }}
           />
         ) : null}
       </Link>

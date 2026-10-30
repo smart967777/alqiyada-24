@@ -422,7 +422,7 @@ const AdminArticles = () => {
                     className="relative w-28 h-20 rounded-lg overflow-hidden border-2 transition-all hover:border-urgent"
                     style={{ borderColor: editData.image_url === img ? "hsl(var(--urgent-red))" : "hsl(var(--admin-border))" }}>
                     <img src={img} alt="" className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      onError={(e) => { e.currentTarget.src = "/assets/hero-news.jpg"; e.currentTarget.onerror = null; }} />
                   </button>
                 ))}
               </div>
